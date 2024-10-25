@@ -1,0 +1,25 @@
+In terms of the program's outcomes, the US presidential election system exhibits a basic conflict between the Electoral College system
+and the popular vote. A candidate may theoretically win the presidency with a much smaller proportion of the popular vote than most 
+people might anticipate, typically between 20% and 30% according to data from the 2012 election.
+
+This is due to the way electoral votes are apportioned among states. Smaller states have a higher proportion of electoral votes
+proportional to their population, hence winning several of them can result in a big number of electoral votes but receiving fewer 
+popular votes. Meanwhile, larger states give fewer electoral votes proportionally but provide significant gains if a candidate can win t
+hem. The program's results are anticipated to highlight this hybrid strategy, in which a candidate might target a mix of large and small 
+states to achieve enough electoral votes without winning a majority of the popular vote.
+
+If the software output reveals that approximately 25% of the popular vote is sufficient to win the presidency, this demonstrates how 
+skewed the distribution can be in favor of states that are overrepresented in the Electoral College. When this outcome is compared to 
+previous election years, common trends appear. The number can fluctuate slightly due to demographic changes or electoral movements, 
+but it often falls between 20% and 30%.
+
+An implication would be that the system gives a minority of voters in certain states excessive power in deciding the outcome of 
+elections. This contradicts the premise of "one person, one vote." Candidates frequently focus disproportionately on battleground states,
+which can sway the election, leaving many voters in other areas feeling overlooked, particularly those in places where one party is 
+heavily favored. Third-party candidates could further skew the results, even enabling a candidate to win with even less popular support, 
+however this is not modeled here.
+
+Think about changes that bring electoral results closer to the popular vote. This might include switching from the existing 
+winner-take-all system to a proportional distribution of electoral votes, in which states divide their electoral votes according to 
+the percentage of the popular vote each candidate receives. Eliminating the Electoral College completely and switching to a system in 
+which the president is chosen solely by the national popular vote would be a more severe but straightforward alternative.
