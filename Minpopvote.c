@@ -2,360 +2,294 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <limits.h>
 
 #include "MinPopVote.h"
 
-int totalEVs(State *states, int szStates)
-{
-    int total = 0;
-    for (int i = 0; i < szStates; ++i)
-    {
-        total += states[i].electoralVotes;
+int totalEVs(State* states, int szStates) {
+    int sum = 0;
+    for(int i = 0; i < szStates; i++) {
+        sum += states[i].electoralVotes;
     }
-    return total;
+    return sum;
 }
 
-int totalPVs(State *states, int szStates)
-{
-    int total = 0;
-    for (int i = 0; i < szStates; ++i)
-    {
-        total += states[i].popularVotes;
+int totalPVs(State* states, int szStates) {
+    int sum = 0;
+    for(int i = 0; i < szStates; i++) {
+        sum += states[i].popularVotes;
     }
-    return total;
+    return sum;
 }
 
-void printState(State s)
-{
-    printf("State: %s, Electoral Votes: %d, Popular Votes: %d\n", s.name, s.electoralVotes, s.popularVotes);
+bool isValidYear(int year) {
+    return (year >= 1828 && year <= 2020 && year % 4 == 0);
 }
 
-void printStatePVsToWin(State s)
-{
-    printf("State: %s can be won with Popular Votes: %d\n", s.name, s.popularVotes / 2 + 1);
-}
+bool setSettings(int argc, char** argv, int* year, bool* fastMode, bool* quietMode) {
+    *year = 0;
+    *fastMode = false;
+    *quietMode = false;
 
-
-bool setSettings(int argc, char **argv, int *year, bool *fastMode, bool *quietMode) {
-    // Initialize variables
-    *year = 0;        // Default to an invalid year
-    *fastMode = false; // Set fast mode to false by default
-    *quietMode = false; // Set quiet mode to false by default
-    bool hasUnknownArgument = false; // Flag to track unknown arguments
-
-    // Loop through the command line arguments starting from index 1
-    for (int i = 1; i < argc; ++i) {
-        // Check if the argument is for setting the year
+    for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-y") == 0) {
-            // Check if the next argument exists and is a valid integer
             if (i + 1 < argc) {
-                char *endptr; // To check for conversion errors
-                long tempYear = strtol(argv[i + 1], &endptr, 10); // Convert the next argument to an integer
-                
-                // Check if conversion was successful and valid year range
-                if (*endptr == '\0' && tempYear > 0) {
-                    *year = (int)tempYear; // Assign the valid year
-                    i++; // Skip the next argument since it's the year value
+                char* nextArg = argv[i + 1];
+                if (nextArg[0] != '-') {
+                    int parsedYear = atoi(nextArg);
+                    if (isValidYear(parsedYear)) {
+                        *year = parsedYear;
+                    } else {
+                        *year = 0;
+                    }
+                    i++;
                 } else {
-                    // If invalid, set year to 0 and return false
                     *year = 0;
-                    return false;
                 }
             } else {
-                // If no value provided for -y, set year to 0 and return false
                 return false;
             }
-        }
-        // Check if quiet mode is enabled
+        } 
+        else if (strcmp(argv[i], "-f") == 0) {
+            if (!(i > 1 && strcmp(argv[i - 1], "-y") == 0)) {
+                *fastMode = true;
+            }
+        } 
         else if (strcmp(argv[i], "-q") == 0) {
-            *quietMode = true; // Enable quiet mode
-        }
-        // Check if fast mode is enabled
-        else if (strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--fast") == 0) {
-            *fastMode = true; // Enable fast mode
-        }
-        // Handle unknown arguments
+            if (!(i > 1 && strcmp(argv[i - 1], "-y") == 0)) {
+                *quietMode = true;
+            }
+        } 
         else {
-            hasUnknownArgument = true; // Mark that an unknown argument was found
+            return false;
         }
     }
 
-    // Special case for the year 1999
-    if (*year == 1999) {
-        *year = 0; // Reset year to 0
-    }
-
-    // Check for year validity (must be a perfect multiple of 4 between 1828 and 2020)
-    if (*year > 0 && (*year < 1828 || *year > 2020 || (*year % 4 != 0 && *year != 2000))) {
-        *year = 0; // Set to 0 for invalid years
-    }
-
-    // Return false if any unknown arguments were found, otherwise return true
-    return !hasUnknownArgument; 
+    return true;
 }
 
 
-
-
-
-
-
-
-
-
-void inFilename(char *filename, int year)
-{
+void inFilename(char* filename, int year) {
     sprintf(filename, "data/%d.csv", year);
 }
 
-void outFilename(char *filename, int year)
-{
+void outFilename(char* filename, int year) {
     sprintf(filename, "toWin/%d_win.csv", year);
 }
 
-bool parseLine(char *line, State *myState)
-{
-    // Temporary variables to hold parsed values
-    char stateName[100];
-    char postalCode[3];
-    int electoralVotes;
-    int popularVotes;
+bool parseLine(char* line, State* myState) {
+    char tempLine[256];
+    strncpy(tempLine, line, 255);
+    tempLine[255] = '\0';
 
-    // Check if the format is correct by counting the number of items after parsing
-    int numFields = sscanf(line, "%99[^,],%2[^,],%d,%d", stateName, postalCode, &electoralVotes, &popularVotes);
+    char* token = strtok(tempLine, ",");
+    if(token == NULL) return false;
+    strcpy(myState->name, token);
 
-    // If sscanf doesn't return 4, the line format is invalid
-    if (numFields != 4)
-    {
-        return false;
-    }
+    token = strtok(NULL, ",");
+    if(token == NULL) return false;
+    strcpy(myState->postalCode, token);
 
-    // Copy parsed values into the State struct
-    strcpy(myState->name, stateName);
-    strcpy(myState->postalCode, postalCode);
-    myState->electoralVotes = electoralVotes;
-    myState->popularVotes = popularVotes;
+    token = strtok(NULL, ",");
+    if(token == NULL) return false;
+    myState->electoralVotes = atoi(token);
+
+    token = strtok(NULL, ",\n");
+    if(token == NULL) return false;
+    myState->popularVotes = atoi(token);
+
+    token = strtok(NULL, ",");
+    if(token != NULL) return false;
 
     return true;
 }
 
-bool readElectionData(char *filename, State *allStates, int *nStates)
-{
-    // Open the file for reading
-    FILE *file = fopen(filename, "r");
-    if (file == NULL)
-    {
-        // If the file cannot be opened, return false
+bool readElectionData(char* filename, State* allStates, int* nStates) {
+    *nStates = 0;
+
+    FILE* fp = fopen(filename, "r");
+    if(fp == NULL) {
         return false;
     }
 
-    // Initialize the number of states to 0
-    *nStates = 0;
+    char line[256];
+    while(fgets(line, sizeof(line), fp) != NULL) {
+        if(strlen(line) <= 1) continue;
 
-    // Buffer to hold each line of the file
-    char line[200]; // assuming no line will exceed this length
-
-    // Read the file line-by-line
-    while (fgets(line, sizeof(line), file) != NULL)
-    {
-        // Remove any trailing newline character
-        line[strcspn(line, "\n")] = 0;
-
-        // Parse the line and check if it is valid
-        if (parseLine(line, &allStates[*nStates]))
-        {
-            // If valid, increment the number of states
-            (*nStates)++;
+        State tempState;
+        bool valid = parseLine(line, &tempState);
+        if(valid) {
+            if(*nStates < 51) {
+                allStates[*nStates] = tempState;
+                (*nStates)++;
+            } else {
+                fclose(fp);
+                return false;
+            }
+        } else {
+            fclose(fp);
+            return false;
         }
     }
 
-    // Close the file after reading
-    fclose(file);
-
-    // Return true to indicate successful reading
+    fclose(fp);
     return true;
 }
 
+MinInfo minPopVoteAtLeast(State* states, int szStates, int start, int EVs) {
+    MinInfo res;
 
-
-
-
-
-MinInfo minPopVoteAtLeast(State *states, int szStates, int start, int EVs) {
-    // Base case: If no more EVs are needed, return success
     if (EVs <= 0) {
-        MinInfo successInfo = {.sufficientEVs = true, .subsetPVs = 0, .szSomeStates = 0};
-        return successInfo;
+        res.szSomeStates = 0;
+        res.subsetPVs = 0;
+        res.sufficientEVs = true;
+        return res;
     }
 
-    // Base case: If we've checked all states and still need EVs, return failure
     if (start >= szStates) {
-        MinInfo failInfo = {.sufficientEVs = false, .subsetPVs = INT_MAX, .szSomeStates = 0};
-        return failInfo;
+        res.szSomeStates = 0;
+        res.subsetPVs = 0;
+        res.sufficientEVs = false;
+        return res;
     }
 
-    // Recursive case 1: Exclude the current state
-    MinInfo excludeCurrent = minPopVoteAtLeast(states, szStates, start + 1, EVs);
-
-    // Recursive case 2: Include the current state if it helps with electoral votes
-    MinInfo includeCurrent = minPopVoteAtLeast(states, szStates, start + 1, EVs - states[start].electoralVotes);
-
-    // If we include the current state, accumulate its half popular votes
-    if (includeCurrent.sufficientEVs) {
-        includeCurrent.subsetPVs += (states[start].popularVotes / 2) + 1; // Accumulate half + 1
-        includeCurrent.someStates[includeCurrent.szSomeStates++] = states[start]; // Add to subset
+    MinInfo include = minPopVoteAtLeast(states, szStates, start + 1, EVs - states[start].electoralVotes);
+    if(include.sufficientEVs) {
+        include.subsetPVs += (states[start].popularVotes / 2) + 1;
+        if(include.szSomeStates < 51) {
+            include.someStates[include.szSomeStates] = states[start];
+            include.szSomeStates++;
+        }
     }
 
-    // Choose the result with fewer popular votes that satisfies the EV requirement
-    MinInfo result;
+    MinInfo exclude = minPopVoteAtLeast(states, szStates, start + 1, EVs);
 
-    // Check if including the current state is better
-    if (includeCurrent.sufficientEVs && 
-        (excludeCurrent.sufficientEVs == false || includeCurrent.subsetPVs < excludeCurrent.subsetPVs)) {
-        result = includeCurrent; // Include the current state
+    if(include.sufficientEVs && exclude.sufficientEVs) {
+        if(include.subsetPVs < exclude.subsetPVs) {
+            res = include;
+        } else {
+            res = exclude;
+        }
+    } else if(include.sufficientEVs) {
+        res = include;
     } else {
-        result = excludeCurrent; // Exclude the current state
+        res = exclude;
     }
 
-    return result;
+    return res;
 }
 
-MinInfo minPopVoteToWin(State *states, int szStates) {
-    // Calculate the total electoral votes needed to win
+MinInfo minPopVoteToWin(State* states, int szStates) {
     int totEVs = totalEVs(states, szStates);
-    int reqEVs = (totEVs / 2) + 1;  // Required electoral votes to win
-
-    // Call the recursive function to find the minimum popular vote subset
+    int reqEVs = totEVs / 2 + 1;
     return minPopVoteAtLeast(states, szStates, 0, reqEVs);
 }
 
-
-
-
-// int halfVotes(int votes) {
-//    return (votes / 2) + 1;  // Ensuring proper rounding up for odd votes
-// }
-int halfVotes(int votes) {
-    if (votes % 2 == 0) {
-        return (votes / 2) - 1;  // For even votes, add half - 1
-    } else {
-        return (votes / 2) + 1;  // For odd votes, subtract 1 from half
-    }
-}
-MinInfo minPopVoteAtLeastFast(State *states, int szStates, int start, int EVs, MinInfo **memo) {
-    // Base case: If we've already achieved the required EVs
+MinInfo minPopVoteAtLeastFast(State* states, int szStates, int start, int EVs, MinInfo** memo) {
     if (EVs <= 0) {
-        MinInfo successInfo = {.sufficientEVs = true, .subsetPVs = 0, .szSomeStates = 0};
-        return successInfo;
+        MinInfo res;
+        res.szSomeStates = 0;
+        res.subsetPVs = 0;
+        res.sufficientEVs = true;
+        return res;
     }
 
-    // Base case: If there are no more states to process
     if (start >= szStates) {
-        MinInfo failInfo = {.sufficientEVs = false, .subsetPVs = INT_MAX, .szSomeStates = 0};
-        return failInfo;
+        MinInfo res;
+        res.szSomeStates = 0;
+        res.subsetPVs = 0;
+        res.sufficientEVs = false;
+        return res;
     }
 
-    // Memoization check: If this EV-state pair has been calculated before
-    if (memo[start][EVs].subsetPVs != -1) {
+    if(EVs >= 0 && start < szStates && memo[start][EVs].subsetPVs != -1) {
         return memo[start][EVs];
     }
 
-    // Recursive case 1: Exclude the current state and move to the next state
-    MinInfo excludeCurrent = minPopVoteAtLeastFast(states, szStates, start + 1, EVs, memo);
-
-    // Recursive case 2: Include the current state (if it can contribute to the EVs)
-    MinInfo includeCurrent;
-    if (states[start].electoralVotes <= EVs) {
-        includeCurrent = minPopVoteAtLeastFast(states, szStates, start + 1, EVs - states[start].electoralVotes, memo);
-
-        // If we successfully reached the required EVs, include this state
-        if (includeCurrent.sufficientEVs) {
-            // Accumulate half of the state's popular votes, ensuring correct rounding
-            includeCurrent.subsetPVs += halfVotes(states[start].popularVotes);  
-            includeCurrent.someStates[includeCurrent.szSomeStates++] = states[start];  // Track the state
+    MinInfo include = minPopVoteAtLeastFast(states, szStates, start + 1, EVs - states[start].electoralVotes, memo);
+    if(include.sufficientEVs) {
+        include.subsetPVs += (states[start].popularVotes / 2) + 1;
+        if(include.szSomeStates < 51) {
+            include.someStates[include.szSomeStates] = states[start];
+            include.szSomeStates++;
         }
-    } else {
-        includeCurrent.sufficientEVs = false;  // Mark as invalid if state EVs exceed required EVs
     }
 
-    // Choose the better option: fewer popular votes or valid EVs
-    MinInfo result;
-    if (includeCurrent.sufficientEVs && (!excludeCurrent.sufficientEVs || includeCurrent.subsetPVs < excludeCurrent.subsetPVs)) {
-        result = includeCurrent;
+    MinInfo exclude = minPopVoteAtLeastFast(states, szStates, start + 1, EVs, memo);
+
+    MinInfo res;
+    if(include.sufficientEVs && exclude.sufficientEVs) {
+        if(include.subsetPVs < exclude.subsetPVs) {
+            res = include;
+        } else {
+            res = exclude;
+        }
+    } else if(include.sufficientEVs) {
+        res = include;
     } else {
-        result = excludeCurrent;
+        res = exclude;
     }
 
-    // Store the result in the memo table for future reuse
-    memo[start][EVs] = result;
+    memo[start][EVs] = res;
 
-    return result;
+    return res;
 }
 
-MinInfo minPopVoteToWinFast(State *states, int szStates) {
-    int totalElectoralVotes = totalEVs(states, szStates);
-    int reqEVs = totalElectoralVotes / 2 + 1;  // Required electoral votes to win
+MinInfo minPopVoteToWinFast(State* states, int szStates) {
+    int totEVs = totalEVs(states, szStates);
+    int reqEVs = totEVs / 2 + 1;
 
-    // Create memoization table
-    MinInfo **memo = (MinInfo **)malloc((szStates + 1) * sizeof(MinInfo *));
-    for (int i = 0; i < szStates + 1; ++i) {
-        memo[i] = (MinInfo *)malloc((reqEVs + 1) * sizeof(MinInfo));
-        for (int j = 0; j < reqEVs + 1; ++j) {
-            memo[i][j].subsetPVs = -1;  // Initialize memo values to -1 (unvisited)
-            memo[i][j].sufficientEVs = false;
+    MinInfo** memo = (MinInfo**)malloc((szStates + 1) * sizeof(MinInfo*));
+    if(memo == NULL) {
+        MinInfo empty;
+        empty.szSomeStates = 0;
+        empty.subsetPVs = 0;
+        empty.sufficientEVs = false;
+        return empty;
+    }
+    for(int i = 0; i <= szStates; i++) {
+        memo[i] = (MinInfo*)malloc((reqEVs + 1) * sizeof(MinInfo));
+        if(memo[i] == NULL) {
+            for(int k = 0; k < i; k++) {
+                free(memo[k]);
+            }
+            free(memo);
+            MinInfo empty;
+            empty.szSomeStates = 0;
+            empty.subsetPVs = 0;
+            empty.sufficientEVs = false;
+            return empty;
+        }
+        for(int j = 0; j <= reqEVs; j++) {
+            memo[i][j].subsetPVs = -1;
             memo[i][j].szSomeStates = 0;
+            memo[i][j].sufficientEVs = false;
         }
     }
 
-    // Get the result using the optimized recursive function
-    MinInfo result = minPopVoteAtLeastFast(states, szStates, 0, reqEVs, memo);
+    MinInfo res = minPopVoteAtLeastFast(states, szStates, 0, reqEVs, memo);
 
-    // Free the memoization memory
-    for (int i = 0; i < szStates + 1; ++i) {
+    for(int i = 0; i <= szStates; i++) {
         free(memo[i]);
     }
     free(memo);
 
-    return result;
+    return res;
 }
 
-
-
-
-bool writeSubsetData(char *filenameW, int totEVs, int totPVs, int wonEVs, MinInfo toWin)
-{
-    // Open the file for writing
-    FILE *file = fopen(filenameW, "w");
-    if (file == NULL)
-    {
-        return false; // Return false if the file can't be opened
+bool writeSubsetData(char* filenameW, int totEVs, int totPVs, int wonEVs, MinInfo toWin) {
+    FILE* fp = fopen(filenameW, "w");
+    if(fp == NULL) {
+        return false;
     }
 
-    // Write the first line with total stats in CSV format
-    fprintf(file, "%d,%d,%d,%d\n", totEVs, totPVs, wonEVs, toWin.subsetPVs);
+    fprintf(fp, "%d,%d,%d,%d\n", totEVs, totPVs, wonEVs, toWin.subsetPVs);
 
-    // Write each state detail to the file in CSV format
-    for (int i = 0; i < toWin.szSomeStates; ++i)
-    {
-        State state = toWin.someStates[i];
-        fprintf(file, "%s,%s,%d,%d\n", state.name, state.postalCode, state.electoralVotes, state.popularVotes);
+    for(int i = toWin.szSomeStates - 1; i >= 0; i--) {
+        int minPVs = (toWin.someStates[i].popularVotes / 2) + 1;
+        fprintf(fp, "%s,%s,%d,%d\n", toWin.someStates[i].name, toWin.someStates[i].postalCode,
+                toWin.someStates[i].electoralVotes, minPVs);
     }
 
-    // Calculate minimum percentage of popular vote
-    double minPercentagePV = (double)toWin.subsetPVs / totPVs * 100;
-
-    // Write the statistical summary to the file
-    fprintf(file, "\nStatistical Summary:\n");
-    fprintf(file, "Total EVs = %d\n", totEVs);
-    fprintf(file, "Required EVs = %d\n", wonEVs);
-    fprintf(file, "EVs won = %d\n", wonEVs);
-    fprintf(file, "Total PVs = %d\n", totPVs);
-    fprintf(file, "PVs Won = %d\n", toWin.subsetPVs);
-    fprintf(file, "Minimum Percentage of Popular Vote to Win Election = %.2f%%\n", minPercentagePV);
-
-    // Close the file after writing
-    fclose(file);
+    fclose(fp);
     return true;
 }
-
